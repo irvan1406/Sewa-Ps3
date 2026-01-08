@@ -5,75 +5,62 @@ document.addEventListener('DOMContentLoaded', () => {
     const proyektorCheckbox = document.getElementById('proyektor');
     const pembayaranRadios = document.getElementsByName('pembayaran');
     const rekeningInfo = document.getElementById('rekeningInfo');
-
-    // Update total price display
+    
     function updateTotal() {
         let total = 0;
-        
-        // Cek Durasi
-        durasiRadios.forEach(r => {
-            if(r.checked) total += parseInt(r.dataset.harga);
-        });
-
-        // Cek Proyektor
-        if(proyektorCheckbox.checked) {
-            total += parseInt(proyektorCheckbox.value);
-        }
-
+        durasiRadios.forEach(r => { if (r.checked) total += parseInt(r.dataset.harga); });
+        if (proyektorCheckbox.checked) total += parseInt(proyektorCheckbox.value);
         displayTotal.innerText = `Rp${total.toLocaleString('id-ID')}`;
         return total;
     }
-
-    // Event Listeners for UI changes
+    
     form.addEventListener('change', () => {
         updateTotal();
-        
-        // Show/hide bank info
         const selectedPay = Array.from(pembayaranRadios).find(r => r.checked).value;
         rekeningInfo.style.display = selectedPay === 'Transfer BRI' ? 'block' : 'none';
     });
-
-    // Submit Logic
+    
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-
+        
         const nama = document.getElementById('nama').value;
         const whatsapp = document.getElementById('whatsapp').value;
         const durasiVal = Array.from(durasiRadios).find(r => r.checked).value;
         const proyektor = proyektorCheckbox.checked ? "Ya" : "Tidak";
         const pembayaran = Array.from(pembayaranRadios).find(r => r.checked).value;
         const total = updateTotal();
-
-        // Save to LocalStorage
+        
+        // Membuat ID Unik
         const rentalId = 'PS' + Date.now();
-        const rentalData = {
+        
+        // MENGEMAS DATA JADI KODE RAHASIA (Base64)
+        // Penyewa tidak akan paham arti kode ini
+        const rawData = {
             id: rentalId,
-            nama,
-            whatsapp,
-            durasi: parseInt(durasiVal),
-            proyektor,
-            pembayaran,
-            total,
-            status: 'Belum Dibayar',
-            waktuSisa: parseInt(durasiVal) * 3600, // simpan dalam detik
-            isRunning: false,
-            catatan: ""
+            nm: nama,
+            wa: whatsapp,
+            dr: parseInt(durasiVal),
+            pj: proyektor,
+            py: pembayaran,
+            tt: total
         };
-
-        const existingRentals = JSON.parse(localStorage.getItem('rentals') || '[]');
-        existingRentals.push(rentalData);
-        localStorage.setItem('rentals', JSON.stringify(existingRentals));
-
-        // Generate WhatsApp Message
+        const secretCode = btoa(JSON.stringify(rawData));
+        
         const waNumber = "6287745756269";
-        const message = `*SEWA PS3 IRVAN*%0A%0ANama: ${nama}%0AWA: ${whatsapp}%0ADurasi: ${durasiVal} Jam%0AProyektor: ${proyektor}%0ATotal: Rp${total.toLocaleString('id-ID')}%0APembayaran: ${pembayaran}%0A%0AMohon konfirmasi admin.`;
+        const message = `*SEWA PS3 IRVAN*%0A%0A` +
+            `Nama: ${nama}%0A` +
+            `WA: ${whatsapp}%0A` +
+            `Durasi: ${durasiVal} Jam%0A` +
+            `Proyektor: ${proyektor}%0A` +
+            `Total: Rp${total.toLocaleString('id-ID')}%0A` +
+            `Pembayaran: ${pembayaran}%0A%0A` +
+            `*KODE AKTIVASI SISTEM (JANGAN DIUBAH):*%0A` +
+            `#INV-${secretCode}#`;
         
         window.open(`https://wa.me/${waNumber}?text=${message}`, '_blank');
         
-        // Reset form
         alert('Data terkirim! Silahkan tunggu konfirmasi admin.');
         form.reset();
         updateTotal();
     });
 });
-
