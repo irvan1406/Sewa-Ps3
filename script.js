@@ -34,56 +34,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const pembayaran = Array.from(pembayaranRadios).find(r => r.checked).value;
         const total = updateTotal();
         
+        // Buat ID unik berdasarkan waktu
         const rentalId = 'PS' + Date.now();
         
-        // Data paket ringkas
-        const rawData = {
-            id: rentalId,
-            nm: nama,
-            wa: whatsapp,
-            dr: parseInt(durasiVal),
-            pj: proyektor,
-            py: pembayaran,
-            tt: total
-        };
+        // Satukan data menjadi string dengan pemisah |
+        const rawString = `${rentalId}|${nama}|${whatsapp}|${durasiVal}|${proyektor}|${pembayaran}|${total}`;
 
-        // FUNGSI UNTUK MEMBUAT BASE64 YANG PASTI MUNCUL (SAFE UNICODE)
-        function b64EncodeUnicode(str) {
-            return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
-                function toSolidBytes(match, p1) {
-                    return String.fromCharCode('0x' + p1);
-                }));
-        }
-        
-        let secretCode = "";
-        try {
-            const jsonString = JSON.stringify(rawData);
-            secretCode = b64EncodeUnicode(jsonString);
-        } catch (err) {
-            secretCode = "ERR" + Math.random().toString(36).substring(7);
+        // Ubah string menjadi kode Hex (Sangat stabil untuk WhatsApp)
+        let hexCode = "";
+        for (let i = 0; i < rawString.length; i++) {
+            hexCode += rawString.charCodeAt(i).toString(16);
         }
         
         const waNumber = "6287745756269";
-        
-        // Menggunakan templat literal string untuk pesan
-        const messageText = `*SEWA PS3 IRVAN*
+        const messageText = `*SEWA PS3 IRVAN*\n\n` +
+            `👤 Nama: ${nama}\n` +
+            `📱 WA: ${whatsapp}\n` +
+            `⏳ Durasi: ${durasiVal} Jam\n` +
+            `📹 Proyektor: ${proyektor}\n` +
+            `💰 Total: Rp${total.toLocaleString('id-ID')}\n` +
+            `💳 Bayar: ${pembayaran}\n\n` +
+            `*KODE AKTIVASI SISTEM (JANGAN DIUBAH):*\n` +
+            `#INV-${hexCode}#`;
 
-Nama: ${nama}
-WA: ${whatsapp}
-Durasi: ${durasiVal} Jam
-Proyektor: ${proyektor}
-Total: Rp${total.toLocaleString('id-ID')}
-Pembayaran: ${pembayaran}
-
-*KODE AKTIVASI SISTEM (JANGAN DIUBAH):*
-#INV-${secretCode}#`;
-
-        // Encode seluruh pesan agar aman dikirim lewat URL
-        const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(messageText)}`;
+        const finalUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(messageText)}`;
         
-        window.open(waLink, '_blank');
+        window.open(finalUrl, '_blank');
         
-        alert('Data terkirim! Pastikan Anda menekan tombol kirim di WhatsApp.');
+        alert('Data berhasil diproses! Silakan kirim pesan di WhatsApp.');
         form.reset();
         updateTotal();
     });
