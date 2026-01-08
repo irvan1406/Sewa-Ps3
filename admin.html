@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin - Sewa PS3 Irvan</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="admin-body">
+    <div id="loginArea" class="container">
+        <div class="card login-card">
+            <h2>🔐 Admin Login</h2>
+            <input type="password" id="pinInput" placeholder="Masukkan PIN">
+            <button onclick="loginAdmin()" class="btn-confirm">Masuk</button>
+        </div>
+    </div>
+
+    <div id="adminDashboard" class="container" style="display:none;">
+        <header>
+            <h1>🛠️ Dashboard Admin</h1>
+            <button onclick="logout()" class="btn-small">Logout</button>
+        </header>
+
+        <div class="card">
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Penyewa</th>
+                            <th>Info Sewa</th>
+                            <th>Status</th>
+                            <th>Waktu/Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rentalTableBody">
+                        <!-- Data will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Edit -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3>Edit Catatan</h3>
+            <textarea id="editCatatan" rows="4"></textarea>
+            <div class="modal-actions">
+                <button onclick="saveCatatan()" class="btn-confirm">Simpan</button>
+                <button onclick="closeModal()" class="btn-cancel">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
+

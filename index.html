@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sewa PS3 IRVAN - Pendaftaran</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 SEWA PS3 IRVAN</h1>
+            <p>Penyewaan PS3 Mudah & Cepat</p>
+        </header>
+
+        <form id="rentalForm" class="card">
+            <div class="form-group">
+                <label>Nama Penyewa</label>
+                <input type="text" id="nama" placeholder="Masukkan nama lengkap" required>
+            </div>
+
+            <div class="form-group">
+                <label>Nomor WhatsApp</label>
+                <input type="number" id="whatsapp" placeholder="Contoh: 08123456789" required>
+            </div>
+
+            <div class="form-group">
+                <label>Pilihan Sewa</label>
+                <div class="radio-group">
+                    <label class="radio-item">
+                        <input type="radio" name="durasi" value="6" data-harga="30000" checked>
+                        <span>6 Jam - Rp30.000</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="durasi" value="12" data-harga="50000">
+                        <span>12 Jam - Rp50.000</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="durasi" value="24" data-harga="80000">
+                        <span>24 Jam - Rp80.000</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Tambahan</label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="proyektor" value="15000">
+                    <span>Sewa Proyektor (+Rp15.000)</span>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label>Metode Pembayaran</label>
+                <div class="radio-group">
+                    <label class="radio-item">
+                        <input type="radio" name="pembayaran" value="Cash" checked>
+                        <span>Cash</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="pembayaran" value="Transfer BRI">
+                        <span>Transfer BRI</span>
+                    </label>
+                </div>
+                <div id="rekeningInfo" class="info-box" style="display:none;">
+                    <p><strong>BRI: 611901029752532</strong></p>
+                    <p>a.n IRVAN MAULANA</p>
+                </div>
+            </div>
+
+            <div class="total-section">
+                <h3>Total: <span id="displayTotal">Rp30.000</span></h3>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-item small-text">
+                    <input type="checkbox" id="sk" required>
+                    <span>Syarat & ketentuan berlaku</span>
+                </label>
+            </div>
+
+            <button type="submit" class="btn-confirm">KONFIRMASI SEWA</button>
+        </form>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
