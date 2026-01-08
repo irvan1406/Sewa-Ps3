@@ -6,20 +6,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const pembayaranRadios = document.getElementsByName('pembayaran');
     const rekeningInfo = document.getElementById('rekeningInfo');
     
+    // Fungsi untuk menghitung total harga
     function updateTotal() {
         let total = 0;
-        durasiRadios.forEach(r => { if (r.checked) total += parseInt(r.dataset.harga); });
-        if (proyektorCheckbox.checked) total += parseInt(proyektorCheckbox.value);
+        durasiRadios.forEach(r => { 
+            if (r.checked) total += parseInt(r.dataset.harga); 
+        });
+        if (proyektorCheckbox.checked) {
+            total += parseInt(proyektorCheckbox.value);
+        }
         displayTotal.innerText = `Rp${total.toLocaleString('id-ID')}`;
         return total;
     }
     
+    // Listener untuk perubahan pilihan (durasi, proyektor, pembayaran)
     form.addEventListener('change', () => {
         updateTotal();
         const selectedPay = Array.from(pembayaranRadios).find(r => r.checked).value;
         rekeningInfo.style.display = selectedPay === 'Transfer BRI' ? 'block' : 'none';
     });
     
+    // Logika pengiriman formulir
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         
@@ -30,11 +37,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const pembayaran = Array.from(pembayaranRadios).find(r => r.checked).value;
         const total = updateTotal();
         
-        // Membuat ID Unik
+        // 1. Membuat ID Unik untuk transaksi ini
         const rentalId = 'PS' + Date.now();
         
-        // MENGEMAS DATA JADI KODE RAHASIA (Base64)
-        // Penyewa tidak akan paham arti kode ini
+        // 2. MENGEMAS DATA JADI KODE RAHASIA (Base64)
+        // Admin akan menggunakan kode ini untuk memasukkan data ke tabel secara otomatis
         const rawData = {
             id: rentalId,
             nm: nama,
@@ -44,8 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
             py: pembayaran,
             tt: total
         };
+        
+        // Konversi objek data menjadi string Base64 agar tidak mudah dibaca penyewa
         const secretCode = btoa(JSON.stringify(rawData));
         
+        // 3. MENYUSUN PESAN WHATSAPP
         const waNumber = "6287745756269";
         const message = `*SEWA PS3 IRVAN*%0A%0A` +
             `Nama: ${nama}%0A` +
@@ -57,9 +67,11 @@ document.addEventListener('DOMContentLoaded', () => {
             `*KODE AKTIVASI SISTEM (JANGAN DIUBAH):*%0A` +
             `#INV-${secretCode}#`;
         
+        // Membuka jendela WhatsApp baru
         window.open(`https://wa.me/${waNumber}?text=${message}`, '_blank');
         
-        alert('Data terkirim! Silahkan tunggu konfirmasi admin.');
+        // Memberikan notifikasi dan reset form
+        alert('Pesan WhatsApp telah dibuat! Silahkan kirim ke Admin untuk proses aktivasi sewa.');
         form.reset();
         updateTotal();
     });
