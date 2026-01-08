@@ -1,6 +1,7 @@
 const ADMIN_PIN = "1234"; 
 let activeEditId = null;
-let notifiedRentals = new Set(); // Untuk melacak siapa saja yang sudah diingatkan (agar tidak muncul terus-menerus)
+// Gunakan Array sederhana jika Set bermasalah di browser tertentu
+let notifiedRentals = []; 
 
 function loginAdmin() {
     const pinInput = document.getElementById('pinInput');
@@ -14,8 +15,15 @@ function loginAdmin() {
 
         document.getElementById('loginArea').style.display = 'none';
         document.getElementById('adminDashboard').style.display = 'block';
+        
+        // Memastikan tabel langsung dirender
         renderTable();
         startGlobalInterval();
+        
+        // Minta izin notifikasi
+        if ("Notification" in window && Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
     } else {
         alert('PIN Salah!');
         pinInput.value = "";
@@ -73,12 +81,11 @@ function renderTable() {
         const s = item.waktuSisa % 60;
         const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 
-        // Tambahkan efek warna merah jika sisa waktu < 10 menit
         const isUrgent = item.waktuSisa > 0 && item.waktuSisa <= 600;
 
         tr.innerHTML = `
             <td><strong>${item.nama}</strong><br><small>${item.whatsapp}</small></td>
-            <td>${item.durasi} Jam<br>Rp${item.total.toLocaleString()}</td>
+            <td>${item.durasi} Jam<br>Rp${item.total.toLocaleString('id-ID')}</td>
             <td><span class="badge ${item.status === 'Sudah Dibayar' ? 'badge-green' : 'badge-red'}">${item.status}</span></td>
             <td>
                 <div style="font-family:monospace; font-weight:bold; color: ${isUrgent ? 'red' : 'black'};">
@@ -105,10 +112,10 @@ function renderTable() {
 }
 
 function hapusData(id) {
-    if(confirm("Hapus permanen data ini? (Tidak bisa dibatalkan)")) {
-        const rentals = getRentals().filter(r => r.id !== id);
+    if(confirm("Hapus permanen data ini?")) {
+        let rentals = getRentals().filter(r => r.id !== id);
         saveRentals(rentals);
-        notifiedRentals.delete(id); // Hapus dari daftar notifikasi juga
+        notifiedRentals = notifiedRentals.filter(notifId => notifId !== id);
         renderTable();
     }
 }
@@ -133,8 +140,10 @@ function tambahWaktu(id, menit) {
     const idx = rentals.findIndex(r => r.id === id);
     if(idx !== -1) {
         rentals[idx].waktuSisa += (menit * 60);
-        // Jika ditambah waktu, izinkan notifikasi muncul lagi jika nanti habis lagi
-        if (rentals[idx].waktuSisa > 600) notifiedRentals.delete(id);
+        // Hapus dari list notifikasi agar bisa muncul lagi jika nanti habis lagi
+        if (rentals[idx].waktuSisa > 600) {
+            notifiedRentals = notifiedRentals.filter(notifId => notifId !== id);
+        }
         saveRentals(rentals);
         renderTable();
     }
@@ -152,7 +161,7 @@ function kirimLink(id, wa) {
     const directoryPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
     const baseUrl = window.location.origin + directoryPath + '/';
     const link = `${baseUrl}timer.html?id=${id}`;
-    const msg = `Pembayaran diterima. Link timer: ${link}`;
+    const msg = `Pembayaran diterima. Link timer sewa Anda: ${link}`;
     window.open(`https://wa.me/${formattedWa}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
@@ -173,8 +182,14 @@ function saveCatatan() {
     renderTable();
 }
 
-function getRentals() { return JSON.parse(localStorage.getItem('rentals') || '[]'); }
-function saveRentals(data) { localStorage.setItem('rentals', JSON.stringify(data)); }
+function getRentals() { 
+    return JSON.parse(localStorage.getItem('rentals') || '[]'); 
+}
+
+function saveRentals(data) { 
+    localStorage.setItem('rentals', JSON.stringify(data)); 
+}
+
 function updateRental(id, updates) {
     const rentals = getRentals();
     const idx = rentals.findIndex(r => r.id === id);
@@ -194,10 +209,10 @@ function startGlobalInterval() {
                 r.waktuSisa -= 1;
                 changed = true;
 
-                // FITUR PENGINGAT 10 MENIT (600 detik)
-                if (r.waktuSisa <= 600 && r.waktuSisa > 598 && !notifiedRentals.has(r.id)) {
+                // Cek Pengingat 10 Menit
+                if (r.waktuSisa <= 600 && r.waktuSisa > 598 && !notifiedRentals.includes(r.id)) {
                     showReminder(r.nama);
-                    notifiedRentals.add(r.id);
+                    notifiedRentals.push(r.id);
                 }
             } else if (r.isRunning && r.waktuSisa <= 0) {
                 r.isRunning = false;
@@ -213,19 +228,12 @@ function startGlobalInterval() {
 }
 
 function showReminder(nama) {
-    // Menggunakan custom alert sederhana agar tidak mengganggu interval timer
-    const msg = `🔔 PENGINGAT: Waktu sewa ${nama} sisa 10 menit lagi!`;
-    // Kita gunakan notifikasi sistem jika diizinkan, atau alert biasa sebagai cadangan
+    const msg = `🔔 PENGINGAT: Waktu sewa ${nama} tinggal 10 menit!`;
     if ("Notification" in window && Notification.permission === "granted") {
-        new Notification(msg);
+        new Notification("Sewa PS3 Irvan", { body: msg });
     } else {
         alert(msg);
     }
-}
-
-// Minta izin notifikasi saat admin masuk
-if ("Notification" in window && Notification.permission !== "denied") {
-    Notification.requestPermission();
 }
 
 function logout() { if(confirm("Logout?")) location.reload(); }
