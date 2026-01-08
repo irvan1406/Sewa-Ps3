@@ -1,11 +1,18 @@
 const ADMIN_PIN = "1234"; 
 let activeEditId = null;
 
+// FUNGSI LOGIN DENGAN IMPORT KODE WA
 function loginAdmin() {
     const pinInput = document.getElementById('pinInput');
+    const importCodeInput = document.getElementById('waImportCode'); // Pastikan ID ini ada di admin.html
     const inputVal = pinInput.value.trim();
 
     if (inputVal === ADMIN_PIN) {
+        // Cek jika ada kode invoice dari WA yang ditempel
+        if (importCodeInput && importCodeInput.value.includes('#INV-')) {
+            handleSecretImport(importCodeInput.value);
+        }
+
         document.getElementById('loginArea').style.display = 'none';
         document.getElementById('adminDashboard').style.display = 'block';
         renderTable();
@@ -17,6 +24,38 @@ function loginAdmin() {
     }
 }
 
+// FUNGSI UNTUK MERUBAH KODE WA MENJADI DATA TABEL
+function handleSecretImport(fullText) {
+    try {
+        // Mengambil kode rahasia di antara #INV- dan #
+        const cleanCode = fullText.split('#INV-')[1].split('#')[0];
+        const d = JSON.parse(atob(cleanCode)); // Decode Base64
+        
+        const rentals = getRentals();
+        
+        // Cek agar tidak ada data ganda (berdasarkan ID)
+        if(!rentals.find(r => r.id === d.id)) {
+            rentals.push({
+                id: d.id,
+                nama: d.nm,
+                whatsapp: d.wa,
+                durasi: d.dr,
+                proyektor: d.pj,
+                pembayaran: d.py,
+                total: d.tt,
+                status: 'Belum Dibayar',
+                waktuSisa: d.dr * 3600,
+                isRunning: false,
+                catatan: ""
+            });
+            saveRentals(rentals);
+            alert("Data pesanan " + d.nm + " berhasil ditambahkan!");
+        }
+    } catch (e) {
+        alert("Kode dari WA tidak valid atau rusak!");
+    }
+}
+
 function logout() {
     if(confirm("Apakah Anda ingin logout?")) {
         location.reload();
@@ -24,20 +63,19 @@ function logout() {
 }
 
 function renderTable() {
-    const rentals = JSON.parse(localStorage.getItem('rentals') || '[]');
+    const rentals = getRentals();
     const tbody = document.getElementById('rentalTableBody');
     if(!tbody) return;
     
     tbody.innerHTML = '';
 
     if (rentals.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Belum ada data penyewa</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Belum ada data penyewa. Tempel kode dari WA saat login untuk menambah data.</td></tr>';
         return;
     }
 
     rentals.forEach((item) => {
         const tr = document.createElement('tr');
-        
         const h = Math.floor(item.waktuSisa / 3600);
         const m = Math.floor((item.waktuSisa % 3600) / 60);
         const s = item.waktuSisa % 60;
@@ -80,6 +118,10 @@ function renderTable() {
     });
 }
 
+// FUNGSI HELPER (PEMBANTU)
+function getRentals() { return JSON.parse(localStorage.getItem('rentals') || '[]'); }
+function saveRentals(data) { localStorage.setItem('rentals', JSON.stringify(data)); }
+
 function konfirmasiBayar(id) {
     updateRental(id, { status: 'Sudah Dibayar' });
     renderTable();
@@ -113,25 +155,13 @@ function stopTimer(id) {
     }
 }
 
-/**
- * FUNGSI KIRIM LINK ONLINE READY
- * Bagian ini otomatis mendeteksi URL GitHub Pages Anda
- */
 function kirimLink(id, wa) {
-    let formattedWa = wa.toString();
-    if (formattedWa.startsWith('0')) {
-        formattedWa = '62' + formattedWa.substring(1);
-    }
-
-    // Mendapatkan URL folder saat ini secara dinamis
-    // Contoh: https://username.github.io/nama-repo/
+    let formattedWa = wa.toString().startsWith('0') ? '62' + wa.substring(1) : wa;
     const currentPath = window.location.pathname;
     const directoryPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
     const baseUrl = window.location.origin + directoryPath + '/';
-    
     const link = `${baseUrl}timer.html?id=${id}`;
     const msg = `Halo, pembayaran sudah kami terima. Berikut adalah link countdown sewa PS3 Anda: ${link}`;
-    
     window.open(`https://wa.me/${formattedWa}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
@@ -145,9 +175,7 @@ function openEdit(id) {
     }
 }
 
-function closeModal() {
-    document.getElementById('editModal').style.display = 'none';
-}
+function closeModal() { document.getElementById('editModal').style.display = 'none'; }
 
 function saveCatatan() {
     const text = document.getElementById('editCatatan').value;
@@ -156,8 +184,6 @@ function saveCatatan() {
     renderTable();
 }
 
-function getRentals() { return JSON.parse(localStorage.getItem('rentals') || '[]'); }
-function saveRentals(data) { localStorage.setItem('rentals', JSON.stringify(data)); }
 function updateRental(id, updates) {
     const rentals = getRentals();
     const idx = rentals.findIndex(r => r.id === id);
