@@ -7,12 +7,18 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="admin-body">
-    <div id="loginArea" class="container">
-        <div class="card login-card">
-            <h2>🔐 Admin Login</h2>
-            <input type="password" id="pinInput" placeholder="Masukkan PIN">
-            <button onclick="loginAdmin()" class="btn-confirm">Masuk</button>
+  <div id="loginArea" class="container">
+    <div class="card login-card">
+        <h2>🔐 Admin Login</h2>
+        <input type="password" id="pinInput" placeholder="Masukkan PIN">
+        
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
+            <p style="font-size: 11px; color: #777; margin-bottom: 5px;">Input Kode dari WA:</p>
+            <input type="text" id="waImportCode" placeholder="Tempel kode #INV-xxx# di sini">
         </div>
+
+        <button onclick="loginAdmin()" class="btn-confirm" style="margin-top: 10px; width: 100%;">MASUK & PROSES</button>
+    </div>
     </div>
 
     <div id="adminDashboard" class="container" style="display:none;">
