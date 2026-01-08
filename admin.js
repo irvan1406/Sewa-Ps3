@@ -1,26 +1,30 @@
-const ADMIN_PIN = "1234"; 
+const ADMIN_PIN = "1234"; // Ganti sesuai keinginan
 let activeEditId = null;
-// Gunakan Array sederhana jika Set bermasalah di browser tertentu
 let notifiedRentals = []; 
 
+// Fungsi Login & Proses Kode WA
 function loginAdmin() {
     const pinInput = document.getElementById('pinInput');
     const importCodeInput = document.getElementById('waImportCode');
     const inputVal = pinInput.value.trim();
 
+    // 1. Cek PIN
     if (inputVal === ADMIN_PIN) {
+        
+        // 2. Cek apakah ada kode aktivasi yang ditempel
         if (importCodeInput && importCodeInput.value.includes('#INV-')) {
             handleSecretImport(importCodeInput.value);
+            importCodeInput.value = ""; // Bersihkan setelah diproses
         }
 
+        // 3. Pindah Halaman
         document.getElementById('loginArea').style.display = 'none';
         document.getElementById('adminDashboard').style.display = 'block';
         
-        // Memastikan tabel langsung dirender
         renderTable();
         startGlobalInterval();
         
-        // Minta izin notifikasi
+        // Minta izin notifikasi browser
         if ("Notification" in window && Notification.permission !== "denied") {
             Notification.requestPermission();
         }
@@ -30,6 +34,7 @@ function loginAdmin() {
     }
 }
 
+// Fungsi Menerjemahkan Kode dari WA (HEX to String)
 function handleSecretImport(fullText) {
     try {
         const hex = fullText.split('#INV-')[1].split('#')[0];
@@ -41,6 +46,7 @@ function handleSecretImport(fullText) {
         const parts = str.split('|');
         const rentals = getRentals();
         
+        // ID Unik (parts[0]), Nama (parts[1]), WA (parts[2]), Durasi (parts[3]), Proyektor (parts[4]), Bayar (parts[5]), Total (parts[6])
         if(!rentals.find(r => r.id === parts[0])) {
             rentals.push({
                 id: parts[0],
@@ -59,10 +65,11 @@ function handleSecretImport(fullText) {
             alert("Berhasil mengimpor data: " + parts[1]);
         }
     } catch (e) {
-        alert("Gagal membaca kode aktivasi!");
+        alert("Gagal membaca kode aktivasi! Pastikan kode lengkap dari #INV- sampai #");
     }
 }
 
+// Menampilkan Tabel di Dashboard
 function renderTable() {
     const rentals = getRentals();
     const tbody = document.getElementById('rentalTableBody');
@@ -70,7 +77,7 @@ function renderTable() {
     tbody.innerHTML = '';
 
     if (rentals.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada data aktif</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">Tidak ada data penyewa</td></tr>';
         return;
     }
 
@@ -81,6 +88,7 @@ function renderTable() {
         const s = item.waktuSisa % 60;
         const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 
+        // Warna merah jika sisa 10 menit (600 detik)
         const isUrgent = item.waktuSisa > 0 && item.waktuSisa <= 600;
 
         tr.innerHTML = `
@@ -88,21 +96,20 @@ function renderTable() {
             <td>${item.durasi} Jam<br>Rp${item.total.toLocaleString('id-ID')}</td>
             <td><span class="badge ${item.status === 'Sudah Dibayar' ? 'badge-green' : 'badge-red'}">${item.status}</span></td>
             <td>
-                <div style="font-family:monospace; font-weight:bold; color: ${isUrgent ? 'red' : 'black'};">
+                <div style="font-family:monospace; font-weight:bold; font-size:1.2em; color: ${isUrgent ? 'red' : 'black'};">
                     ${timeStr} ${isUrgent ? '⚠️' : ''}
                 </div>
                 ${item.status === 'Belum Dibayar' ? 
-                    `<div>
+                    `<div style="margin-top:5px;">
                         <button onclick="konfirmasiBayar('${item.id}')" class="btn-confirm btn-small">Konfirmasi</button>
-                        <button onclick="hapusData('${item.id}')" class="btn-small btn-stop" style="background:#666;">Hapus</button>
+                        <button onclick="hapusData('${item.id}')" class="btn-small" style="background:#666; color:white;">Hapus</button>
                     </div>` :
-                    `<div>
+                    `<div style="margin-top:5px;">
                         <button onclick="toggleTimer('${item.id}')" class="btn-small">${item.isRunning ? '⏸️' : '▶️'}</button>
                         <button onclick="tambahWaktu('${item.id}', 10)" class="btn-small">+10m</button>
                         <button onclick="openEdit('${item.id}')" class="btn-small">✏️</button>
-                        <button onclick="stopTimer('${item.id}')" class="btn-small btn-stop">⏹️</button>
                         <button onclick="hapusData('${item.id}')" class="btn-small" style="background:#ff4757; color:white; border:none;">🗑️</button><br>
-                        <button onclick="kirimLink('${item.id}', '${item.whatsapp}')" class="btn-small" style="background:#25d366; color:white; margin-top:5px;">📱 WA</button>
+                        <button onclick="kirimLink('${item.id}', '${item.whatsapp}')" class="btn-small" style="background:#25d366; color:white; margin-top:5px; width:100%;">📱 Kirim Timer ke WA</button>
                     </div>`
                 }
             </td>
@@ -111,6 +118,7 @@ function renderTable() {
     });
 }
 
+// Fungsi Kontrol Timer & Data
 function hapusData(id) {
     if(confirm("Hapus permanen data ini?")) {
         let rentals = getRentals().filter(r => r.id !== id);
@@ -140,18 +148,11 @@ function tambahWaktu(id, menit) {
     const idx = rentals.findIndex(r => r.id === id);
     if(idx !== -1) {
         rentals[idx].waktuSisa += (menit * 60);
-        // Hapus dari list notifikasi agar bisa muncul lagi jika nanti habis lagi
         if (rentals[idx].waktuSisa > 600) {
             notifiedRentals = notifiedRentals.filter(notifId => notifId !== id);
         }
         saveRentals(rentals);
         renderTable();
-    }
-}
-
-function stopTimer(id) {
-    if(confirm("Selesaikan sewa ini? Data akan dihapus.")) {
-        hapusData(id);
     }
 }
 
@@ -161,10 +162,11 @@ function kirimLink(id, wa) {
     const directoryPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
     const baseUrl = window.location.origin + directoryPath + '/';
     const link = `${baseUrl}timer.html?id=${id}`;
-    const msg = `Pembayaran diterima. Link timer sewa Anda: ${link}`;
+    const msg = `Halo, pembayaran Anda sudah kami terima. Klik link ini untuk memantau sisa waktu main Anda secara Real-Time: ${link}`;
     window.open(`https://wa.me/${formattedWa}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
+// Modal Catatan
 function openEdit(id) {
     activeEditId = id;
     const data = getRentals().find(r => r.id === id);
@@ -173,23 +175,16 @@ function openEdit(id) {
         document.getElementById('editModal').style.display = 'flex';
     }
 }
-
 function closeModal() { document.getElementById('editModal').style.display = 'none'; }
-
 function saveCatatan() {
     updateRental(activeEditId, { catatan: document.getElementById('editCatatan').value });
     closeModal();
     renderTable();
 }
 
-function getRentals() { 
-    return JSON.parse(localStorage.getItem('rentals') || '[]'); 
-}
-
-function saveRentals(data) { 
-    localStorage.setItem('rentals', JSON.stringify(data)); 
-}
-
+// Storage Helpers
+function getRentals() { return JSON.parse(localStorage.getItem('rentals') || '[]'); }
+function saveRentals(data) { localStorage.setItem('rentals', JSON.stringify(data)); }
 function updateRental(id, updates) {
     const rentals = getRentals();
     const idx = rentals.findIndex(r => r.id === id);
@@ -199,6 +194,7 @@ function updateRental(id, updates) {
     }
 }
 
+// Loop Waktu Utama
 function startGlobalInterval() {
     setInterval(() => {
         let rentals = getRentals();
@@ -209,7 +205,7 @@ function startGlobalInterval() {
                 r.waktuSisa -= 1;
                 changed = true;
 
-                // Cek Pengingat 10 Menit
+                // Pengingat 10 Menit (600 detik)
                 if (r.waktuSisa <= 600 && r.waktuSisa > 598 && !notifiedRentals.includes(r.id)) {
                     showReminder(r.nama);
                     notifiedRentals.push(r.id);
