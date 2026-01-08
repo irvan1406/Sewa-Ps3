@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const rentalId = 'PS' + Date.now();
         
-        // Data yang akan dijadikan kode
+        // Data paket ringkas
         const rawData = {
             id: rentalId,
             nm: nama,
@@ -46,37 +46,44 @@ document.addEventListener('DOMContentLoaded', () => {
             py: pembayaran,
             tt: total
         };
+
+        // FUNGSI UNTUK MEMBUAT BASE64 YANG PASTI MUNCUL (SAFE UNICODE)
+        function b64EncodeUnicode(str) {
+            return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+                function toSolidBytes(match, p1) {
+                    return String.fromCharCode('0x' + p1);
+                }));
+        }
         
-        // PROSES PEMBUATAN KODE (Lebih Aman)
         let secretCode = "";
         try {
             const jsonString = JSON.stringify(rawData);
-            // Menggunakan btoa untuk encode ke Base64
-            secretCode = btoa(jsonString);
+            secretCode = b64EncodeUnicode(jsonString);
         } catch (err) {
-            console.error("Gagal membuat kode:", err);
-            secretCode = "ERROR-CODE";
+            secretCode = "ERR" + Math.random().toString(36).substring(7);
         }
         
         const waNumber = "6287745756269";
         
-        // Menyusun pesan dengan format yang benar agar muncul di WhatsApp
-        const messageText = `*SEWA PS3 IRVAN*\n\n` +
-            `Nama: ${nama}\n` +
-            `WA: ${whatsapp}\n` +
-            `Durasi: ${durasiVal} Jam\n` +
-            `Proyektor: ${proyektor}\n` +
-            `Total: Rp${total.toLocaleString('id-ID')}\n` +
-            `Pembayaran: ${pembayaran}\n\n` +
-            `*KODE AKTIVASI SISTEM (JANGAN DIUBAH):*\n` +
-            `#INV-${secretCode}#`;
+        // Menggunakan templat literal string untuk pesan
+        const messageText = `*SEWA PS3 IRVAN*
 
-        // Gunakan encodeURIComponent agar karakter khusus terproses dengan benar oleh browser
-        const finalUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(messageText)}`;
+Nama: ${nama}
+WA: ${whatsapp}
+Durasi: ${durasiVal} Jam
+Proyektor: ${proyektor}
+Total: Rp${total.toLocaleString('id-ID')}
+Pembayaran: ${pembayaran}
+
+*KODE AKTIVASI SISTEM (JANGAN DIUBAH):*
+#INV-${secretCode}#`;
+
+        // Encode seluruh pesan agar aman dikirim lewat URL
+        const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(messageText)}`;
         
-        window.open(finalUrl, '_blank');
+        window.open(waLink, '_blank');
         
-        alert('Data terkirim ke WhatsApp! Silakan tekan tombol kirim di aplikasi WhatsApp.');
+        alert('Data terkirim! Pastikan Anda menekan tombol kirim di WhatsApp.');
         form.reset();
         updateTotal();
     });
