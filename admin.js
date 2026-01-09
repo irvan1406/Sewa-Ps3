@@ -1,34 +1,3 @@
-// Konfigurasi Firebase Anda
-const firebaseConfig = {
-    apiKey: "AIzaSyAh0-rM-TD72TMcGg1XRRfOlLLGQOrYGwQ",
-    authDomain: "sewaps3.firebaseapp.com",
-    projectId: "sewaps3",
-    storageBucket: "sewaps3.firebasestorage.app",
-    messagingSenderId: "619862500456",
-    appId: "1:619862500456:web:adec006e554666f0bc07dd",
-    measurementId: "G-HF4971DBQP"
-};
-
-// Import Firebase SDK dari CDN
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-// Inisialisasi
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-const ADMIN_PIN = "1234"; 
-let activeEditId = null;
-let notifiedRentals = []; 
-let currentRentals = []; // Data lokal dari Firebase
-
-// Login Otomatis ke Firebase (Tanpa Password)
-signInAnonymously(auth).then(() => {
-    console.log("Koneksi Firebase Aktif");
-    listenToFirebase(); // Mulai dengerin data
-}).catch(err => console.error("Koneksi Gagal:", err));
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
