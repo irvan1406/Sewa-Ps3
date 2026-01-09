@@ -29,146 +29,91 @@ signInAnonymously(auth).then(() => {
     console.log("Koneksi Firebase Aktif");
     listenToFirebase(); // Mulai dengerin data
 }).catch(err => console.error("Koneksi Gagal:", err));
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// Fungsi Login Admin (Tetap Pakai PIN Anda)
-window.loginAdmin = function() {
-    const pinInput = document.getElementById('pinInput');
-    const importCodeInput = document.getElementById('waImportCode');
-    const inputVal = pinInput.value.trim();
-
-    if (inputVal === ADMIN_PIN) {
-        if (importCodeInput && importCodeInput.value.trim() !== "") {
-            handleSecretImport(importCodeInput.value);
-            importCodeInput.value = ""; 
-        }
-        document.getElementById('loginArea').style.display = 'none';
-        document.getElementById('adminDashboard').style.display = 'block';
-        startGlobalInterval(); // Jalankan mesin waktu
-    } else {
-        alert('PIN Salah!');
-        pinInput.value = "";
-    }
+const firebaseConfig = {
+    apiKey: "AIzaSyAh0-rM-TD72TMcGg1XRRfOlLLGQOrYGwQ",
+    databaseURL: "https://sewaps3-default-rtdb.firebaseio.com/", // GANTI DENGAN URL DATABASE ANDA
+    projectId: "sewaps3",
+    storageBucket: "sewaps3.firebasestorage.app",
+    messagingSenderId: "619862500456",
+    appId: "1:619862500456:web:adec006e554666f0bc07dd"
 };
 
-// Sync Real-time dari Firebase ke Tabel
-function listenToFirebase() {
-    onSnapshot(collection(db, "rentals"), (snapshot) => {
-        currentRentals = [];
-        snapshot.forEach(doc => {
-            currentRentals.push({ id: doc.id, ...doc.data() });
-        });
-        renderTable();
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const ADMIN_PIN = "1234";
+let rentals = [];
+
+// Ambil data dari Firebase secara Realtime
+onValue(ref(db, 'rentals'), (snapshot) => {
+    const data = snapshot.val();
+    rentals = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+    renderTable();
+});
+
+window.loginAdmin = function() {
+    const pin = document.getElementById('pinInput').value;
+    if (pin === ADMIN_PIN) {
+        const importCode = document.getElementById('waImportCode').value;
+        if (importCode.includes('#INV-')) handleImport(importCode);
+        document.getElementById('loginArea').style.display = 'none';
+        document.getElementById('adminDashboard').style.display = 'block';
+    } else { alert("PIN Salah"); }
+};
+
+async function handleImport(code) {
+    const hex = code.split('#INV-')[1].split('#')[0];
+    let str = '';
+    for (let i = 0; i < hex.length; i += 2) str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    const p = str.split('|');
+    const id = p[0];
+    
+    await set(ref(db, 'rentals/' + id), {
+        nama: p[1], wa: p[2], waktuSisa: parseInt(p[3]) * 3600,
+        isRunning: false, status: 'Belum Dibayar'
     });
-}
-
-// Fungsi Import Kode WA ke Firebase
-async function handleSecretImport(fullText) {
-    try {
-        if (!fullText.includes('#INV-')) return;
-        const hex = fullText.split('#INV-')[1].split('#')[0];
-        let str = '';
-        for (let i = 0; i < hex.length; i += 2) {
-            str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
-        }
-        const parts = str.split('|');
-        if (parts.length < 7) return;
-
-        const id = parts[0];
-        // Simpan ke Cloud Firestore
-        await setDoc(doc(db, "rentals", id), {
-            nama: parts[1],
-            whatsapp: parts[2],
-            durasi: parseInt(parts[3]),
-            proyektor: parts[4],
-            pembayaran: parts[5],
-            total: parseInt(parts[6]),
-            status: 'Belum Dibayar',
-            waktuSisa: parseInt(parts[3]) * 3600,
-            isRunning: false,
-            catatan: "",
-            lastUpdated: Date.now()
-        });
-    } catch (e) { console.error("Import Gagal:", e); }
+    document.getElementById('waImportCode').value = "";
 }
 
 function renderTable() {
     const tbody = document.getElementById('rentalTableBody');
-    if(!tbody) return;
-    tbody.innerHTML = currentRentals.length === 0 ? '<tr><td colspan="4" style="text-align:center;">Kosong</td></tr>' : '';
-
-    currentRentals.forEach((item) => {
-        const tr = document.createElement('tr');
-        const h = Math.floor(item.waktuSisa / 3600);
-        const m = Math.floor((item.waktuSisa % 3600) / 60);
-        const s = item.waktuSisa % 60;
-        const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        const isUrgent = item.waktuSisa > 0 && item.waktuSisa <= 600;
-
-        tr.innerHTML = `
-            <td><strong>${item.nama}</strong></td>
-            <td>${item.status}</td>
-            <td style="font-family:monospace; font-weight:bold; color: ${isUrgent ? 'red' : 'black'};">
-                ${timeStr}
-            </td>
+    tbody.innerHTML = rentals.map(item => `
+        <tr>
+            <td>${item.nama}</td>
+            <td style="font-family:monospace; font-weight:bold;">${formatTime(item.waktuSisa)}</td>
             <td>
-                <div style="display:flex; gap:4px; flex-wrap:wrap;">
-                    ${item.status === 'Belum Dibayar' ? 
-                        `<button onclick="konfirmasiBayar('${item.id}')" class="btn-small">✅ Bayar</button>` :
-                        `<button onclick="toggleTimer('${item.id}', ${item.isRunning})" class="btn-small">${item.isRunning ? '⏸️' : '▶️'}</button>
-                         <button onclick="tambahWaktu('${item.id}', ${item.waktuSisa})" class="btn-small">+10m</button>`
-                    }
-                    <button onclick="hapusData('${item.id}')" class="btn-small" style="background:red; color:white;">🗑️</button>
-                    <button onclick="kirimLink('${item.id}', '${item.whatsapp}')" class="btn-small" style="background:#25d366; color:white; width:100%;">📱 Kirim WA</button>
-                </div>
+                <button onclick="toggle('${item.id}', ${item.isRunning})">${item.isRunning ? '⏸️' : '▶️'}</button>
+                <button onclick="tambah('${item.id}', ${item.waktuSisa})">+10</button>
+                <button onclick="kirimWA('${item.id}', '${item.wa}')">WA</button>
+                <button onclick="hapus('${item.id}')" style="background:red;color:white">🗑️</button>
             </td>
-        `;
-        tbody.appendChild(tr);
-    });
+        </tr>
+    `).join('');
 }
 
-// Global functions (Ditempel ke window agar bisa dipanggil dari onclick HTML)
-window.konfirmasiBayar = async (id) => {
-    await updateDoc(doc(db, "rentals", id), { status: 'Sudah Dibayar' });
+window.toggle = (id, current) => update(ref(db, 'rentals/' + id), { isRunning: !current });
+window.tambah = (id, sisa) => update(ref(db, 'rentals/' + id), { waktuSisa: sisa + 600 });
+window.hapus = (id) => confirm("Hapus?") && remove(ref(db, 'rentals/' + id));
+window.kirimWA = (id, wa) => {
+    const link = window.location.href.replace('admin.html', 'timer.html') + "?id=" + id;
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent("Pantau waktu main: " + link)}`);
 };
 
-window.toggleTimer = async (id, currentIsRunning) => {
-    await updateDoc(doc(db, "rentals", id), { isRunning: !currentIsRunning });
-};
-
-window.tambahWaktu = async (id, currentSisa) => {
-    await updateDoc(doc(db, "rentals", id), { waktuSisa: currentSisa + 600 });
-};
-
-window.hapusData = async (id) => {
-    if(confirm("Hapus data dari Cloud?")) await deleteDoc(doc(db, "rentals", id));
-};
-
-window.kirimLink = (id, wa) => {
-    let formattedWa = wa.startsWith('0') ? '62' + wa.substring(1) : wa;
-    const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', 'timer.html');
-    const link = `${baseUrl}?id=${id}`;
-    const msg = `Sewa PS3 Irvan: Pantau waktu main Anda di: ${link}`;
-    window.open(`https://wa.me/${formattedWa}?text=${encodeURIComponent(msg)}`, '_blank');
-};
-
-// Mesin Waktu (Hanya Jalan di Browser Admin)
-function startGlobalInterval() {
-    if(window.timerInterval) clearInterval(window.timerInterval);
-    window.timerInterval = setInterval(async () => {
-        for (const r of currentRentals) {
-            if(r.isRunning && r.waktuSisa > 0) {
-                // Update ke Firebase setiap detik
-                await updateDoc(doc(db, "rentals", r.id), { 
-                    waktuSisa: r.waktuSisa - 1 
-                });
-                
-                if (r.waktuSisa <= 600 && r.waktuSisa > 598 && !notifiedRentals.includes(r.id)) {
-                    alert(`🔔 Waktu ${r.nama} sisa 10 menit!`);
-                    notifiedRentals.push(r.id);
-                }
-            }
+// Mesin Waktu: Mengurangi waktu di database setiap detik
+setInterval(() => {
+    rentals.forEach(r => {
+        if (r.isRunning && r.waktuSisa > 0) {
+            update(ref(db, 'rentals/' + r.id), { waktuSisa: r.waktuSisa - 1 });
         }
-    }, 1000);
-}
+    });
+}, 1000);
 
-window.logout = () => location.reload();
+function formatTime(s) {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
