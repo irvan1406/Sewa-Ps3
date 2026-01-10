@@ -3,59 +3,87 @@ import { getDatabase, ref, set, onValue, update, remove } from "https://www.gsta
 
 const firebaseConfig = {
     apiKey: "AIzaSyAh0-rM-TD72TMcGg1XRRfOlLLGQOrYGwQ",
-    databaseURL: "https://sewaps3-default-rtdb.firebaseio.com/", // GANTI DENGAN URL DATABASE ANDA
+    databaseURL: "https://sewaps3-default-rtdb.firebaseio.com/",
     projectId: "sewaps3",
     storageBucket: "sewaps3.firebasestorage.app",
     messagingSenderId: "619862500456",
     appId: "1:619862500456:web:adec006e554666f0bc07dd"
 };
 
+// Inisialisasi Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 const ADMIN_PIN = "1234";
 let rentals = [];
 
-// Ambil data dari Firebase secara Realtime
+// Mendengarkan data secara Realtime
 onValue(ref(db, 'rentals'), (snapshot) => {
     const data = snapshot.val();
     rentals = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
     renderTable();
+}, (error) => {
+    console.error("Firebase Error:", error);
 });
 
-window.loginAdmin = function() {
+// Fungsi Login Utama
+window.loginAdmin = async function() {
     const pin = document.getElementById('pinInput').value;
+    const importCode = document.getElementById('waImportCode').value.trim();
+
     if (pin === ADMIN_PIN) {
-        const importCode = document.getElementById('waImportCode').value;
-        if (importCode.includes('#INV-')) handleImport(importCode);
+        // Jika ada kode, proses import. Jika tidak, langsung masuk.
+        if (importCode !== "" && importCode.includes('#INV-')) {
+            try {
+                await handleImport(importCode);
+            } catch (e) {
+                alert("Gagal memproses kode WA, tapi login berhasil.");
+            }
+        }
+        
         document.getElementById('loginArea').style.display = 'none';
         document.getElementById('adminDashboard').style.display = 'block';
-    } else { alert("PIN Salah"); }
+    } else {
+        alert("PIN Salah!");
+    }
 };
 
+// Fungsi Import Kode dari WA
 async function handleImport(code) {
     const hex = code.split('#INV-')[1].split('#')[0];
     let str = '';
-    for (let i = 0; i < hex.length; i += 2) str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    for (let i = 0; i < hex.length; i += 2) {
+        str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    }
     const p = str.split('|');
     const id = p[0];
     
-    await set(ref(db, 'rentals/' + id), {
-        nama: p[1], wa: p[2], waktuSisa: parseInt(p[3]) * 3600,
-        isRunning: false, status: 'Belum Dibayar'
+    // Simpan ke Firebase
+    return set(ref(db, 'rentals/' + id), {
+        nama: p[1] || "User",
+        wa: p[2] || "0",
+        waktuSisa: parseInt(p[3] || 0) * 3600,
+        isRunning: false,
+        status: 'Belum Dibayar'
     });
-    document.getElementById('waImportCode').value = "";
 }
 
+// Render Tabel ke HTML
 function renderTable() {
     const tbody = document.getElementById('rentalTableBody');
+    if (!tbody) return;
+
     tbody.innerHTML = rentals.map(item => `
         <tr>
             <td>${item.nama}</td>
-            <td style="font-family:monospace; font-weight:bold;">${formatTime(item.waktuSisa)}</td>
+            <td>${item.wa || '-'}</td>
+            <td><span class="status-badge">${item.status || 'Aktif'}</span></td>
             <td>
+                <div style="font-family:monospace; font-weight:bold; font-size:1.2em; margin-bottom:5px;">
+                    ${formatTime(item.waktuSisa)}
+                </div>
                 <button onclick="toggle('${item.id}', ${item.isRunning})">${item.isRunning ? '⏸️' : '▶️'}</button>
-                <button onclick="tambah('${item.id}', ${item.waktuSisa})">+10</button>
+                <button onclick="tambah('${item.id}', ${item.waktuSisa})">+10m</button>
                 <button onclick="kirimWA('${item.id}', '${item.wa}')">WA</button>
                 <button onclick="hapus('${item.id}')" style="background:red;color:white">🗑️</button>
             </td>
@@ -63,15 +91,18 @@ function renderTable() {
     `).join('');
 }
 
+// Fungsi kontrol global
 window.toggle = (id, current) => update(ref(db, 'rentals/' + id), { isRunning: !current });
 window.tambah = (id, sisa) => update(ref(db, 'rentals/' + id), { waktuSisa: sisa + 600 });
-window.hapus = (id) => confirm("Hapus?") && remove(ref(db, 'rentals/' + id));
+window.hapus = (id) => confirm("Hapus data?") && remove(ref(db, 'rentals/' + id));
+window.logout = () => location.reload();
+
 window.kirimWA = (id, wa) => {
     const link = window.location.href.replace('admin.html', 'timer.html') + "?id=" + id;
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent("Pantau waktu main: " + link)}`);
 };
 
-// Mesin Waktu: Mengurangi waktu di database setiap detik
+// Sistem Hitung Mundur
 setInterval(() => {
     rentals.forEach(r => {
         if (r.isRunning && r.waktuSisa > 0) {
